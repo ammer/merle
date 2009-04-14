@@ -1,5 +1,6 @@
 %% Copyright 2009, Joe Williams <joe@joetify.com>
 %% Copyright 2009, Nick Gerakines <nick@gerakines.net>
+%% Copyright 2009, Denis Pauk <pauk.denis@gmail.com>
 %%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
@@ -49,9 +50,9 @@
 
 %% gen_server API
 -export([
-    stats/0, stats/1, version/0, getkey/1, delete/2, set/4, add/4, replace/2,
+    stats/0, stats/1, version/0, getkey/1, delete/2, set/4, setlist/3, add/4, replace/2,
     replace/4, cas/5, set/2, flushall/0, flushall/1, verbosity/1, add/2,
-    cas/3, getskey/1, connect/0, connect/2, delete/1, disconnect/0
+    cas/3, getskey/1, connect/0, connect/2, delete/1, disconnect/0, getkeylist/1
 ]).
 
 %% gen_server callbacks
@@ -103,10 +104,21 @@ flushall(Delay) ->
 getkey(Key) when is_atom(Key) ->
 	getkey(atom_to_list(Key));
 getkey(Key) ->
-	case gen_server:call(?SERVER, {getkey,{Key}}) of
+	Bin = case gen_server:call(?SERVER, {getkey,{Key}}) of
 	    ["END"] -> undefined;
 	    [X] -> X
-	end.
+	end,
+	binary_to_term(Bin).
+
+%% @doc retrieve value(list only) based off of key
+getkeylist(Key) when is_atom(Key) ->
+	getkeylist(atom_to_list(Key));
+getkeylist(Key) ->
+	Bin = case gen_server:call(?SERVER, {getkey,{Key}}) of
+	    ["END"] -> undefined;
+	    [X] -> X
+	end,
+	binary_to_list(Bin).
 
 %% @doc retrieve value based off of key for use with cas
 getskey(Key) when is_atom(Key) ->
@@ -158,6 +170,15 @@ delete(Key, Time) ->
 set(Key, Value) ->
     Flag = random:uniform(?RANDOM_MAX),
     set(Key, integer_to_list(Flag), "0", Value).
+
+setlist(Key, ExpTime, Value) ->
+	Flag = random:uniform(?RANDOM_MAX),
+	case gen_server:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}}) of
+	    ["STORED"] -> ok;
+	    ["NOT_STORED"] -> not_stored;
+	    [X] -> X
+	end.
+
 
 set(Key, Flag, ExpTime, Value) when is_atom(Key) ->
 	set(atom_to_list(Key), Flag, ExpTime, Value);
@@ -291,6 +312,18 @@ handle_call({delete, {Key, Time}}, _From, Socket) ->
     ),
     {reply, Reply, Socket};
 
+handle_call({setlist, {Key, Flag, ExpTime, Value}}, _From, Socket) ->
+	Bin = list_to_binary(Value),
+	Bytes = integer_to_list(size(Bin)),
+    Reply = send_storage_cmd(
+        Socket,
+        iolist_to_binary([
+            <<"set ">>, Key, <<" ">>, Flag, <<" ">>, ExpTime, <<" ">>, Bytes
+        ]),
+        Bin
+    ),
+    {reply, Reply, Socket};
+	
 handle_call({set, {Key, Flag, ExpTime, Value}}, _From, Socket) ->
 	Bin = term_to_binary(Value),
 	Bytes = integer_to_list(size(Bin)),
@@ -428,7 +461,8 @@ recv_complex_gets_reply(Socket) ->
   			{ok,[_,_,_,Bytes,CasUniq], ListBin} = Parse,
   			Bin = list_to_binary(ListBin),
   			Reply = get_data(Socket, Bin, Bytes, length(ListBin)),
-  			[CasUniq, Reply];
+			ReplyTerm = binary_to_term(Reply),
+  			[CasUniq, ReplyTerm];
   		{error, closed} ->
   			connection_closed
     after ?TIMEOUT -> timeout
@@ -447,4 +481,4 @@ get_data(Socket, Bin, Bytes, Len) when Len < Bytes + 7->
     end;
 get_data(_, Data, Bytes, _) ->
 	<<Bin:Bytes/binary, "\r\nEND\r\n">> = Data,
-    binary_to_term(Bin).
+    Bin.
