@@ -54,6 +54,12 @@ ok
 > merle:delete(a).
 ok
 
+Use universal set (can save only list and can be getted from other language):
+> merle:setlist("/dfghj",10,"subpage").
+ok
+> merle:getkeylist("/dfghj").
+"subpage"
+
 * Informational commands *
 
 > merle:version().
