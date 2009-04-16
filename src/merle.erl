@@ -103,12 +103,18 @@ flushall(Delay) ->
 %% @doc retrieve value based off of key
 getkey(Key) when is_atom(Key) ->
 	getkey(atom_to_list(Key));
+	
 getkey(Key) ->
 	Bin = case gen_server:call(?SERVER, {getkey,{Key}}) of
 	    ["END"] -> undefined;
 	    [X] -> X
 	end,
-	binary_to_term(Bin).
+	case Bin of
+		undefined ->
+			undefined;
+		_ ->
+			binary_to_term(Bin)
+	end.
 
 %% @doc retrieve value(list only) based off of key
 getkeylist(Key) when is_atom(Key) ->
@@ -118,7 +124,12 @@ getkeylist(Key) ->
 	    ["END"] -> undefined;
 	    [X] -> X
 	end,
-	binary_to_list(Bin).
+		case Bin of
+		undefined ->
+			undefined;
+		_ ->
+			binary_to_list(Bin)
+	end.
 
 %% @doc retrieve value based off of key for use with cas
 getskey(Key) when is_atom(Key) ->
@@ -171,6 +182,12 @@ set(Key, Value) ->
     Flag = random:uniform(?RANDOM_MAX),
     set(Key, integer_to_list(Flag), "0", Value).
 
+setlist(Key, ExpTime, Value) when is_binary(Value) ->
+	setlist(Key, ExpTime, binary_to_list(Value));
+setlist(Key, ExpTime, Value) when is_atom(Key) ->
+	setlist(atom_to_list(Key), ExpTime, Value);
+setlist(Key, ExpTime, Value) when is_integer(ExpTime) ->
+    setlist(Key, integer_to_list(ExpTime), Value);
 setlist(Key, ExpTime, Value) ->
 	Flag = random:uniform(?RANDOM_MAX),
 	case gen_server:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}}) of
@@ -178,7 +195,6 @@ setlist(Key, ExpTime, Value) ->
 	    ["NOT_STORED"] -> not_stored;
 	    [X] -> X
 	end.
-
 
 set(Key, Flag, ExpTime, Value) when is_atom(Key) ->
 	set(atom_to_list(Key), Flag, ExpTime, Value);
