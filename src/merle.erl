@@ -34,7 +34,7 @@
 %% Updates at http://github.com/joewilliams/merle/
 
 -module(merle).
--behaviour(gen_server).
+-behaviour(gen_server2).
 
 -author("Joe Williams <joe@joetify.com>").
 -version("Version: 0.3").
@@ -63,30 +63,30 @@
 
 %% @doc retrieve memcached stats
 stats() ->
-	gen_server:call(?SERVER, {stats}).
+	gen_server2:call(?SERVER, {stats}).
 
 %% @doc retrieve memcached stats based on args
 stats(Args) when is_atom(Args)->
 	stats(atom_to_list(Args));
 stats(Args) ->
-	gen_server:call(?SERVER, {stats, {Args}}).
+	gen_server2:call(?SERVER, {stats, {Args}}).
 
 %% @doc retrieve memcached version
 version() ->
-	gen_server:call(?SERVER, {version}).
+	gen_server2:call(?SERVER, {version}).
 
 %% @doc set the verbosity level of the logging output
 verbosity(Args) when is_integer(Args) ->
 	verbosity(integer_to_list(Args));
 verbosity(Args)->
-	case gen_server:call(?SERVER, {verbosity, {Args}}) of
+	case gen_server2:call(?SERVER, {verbosity, {Args}}) of
 		["OK"] -> ok;
 		[X] -> X
 	end.
 
 %% @doc invalidate all existing items immediately
 flushall() ->
-	case gen_server:call(?SERVER, {flushall}) of
+	case gen_server2:call(?SERVER, {flushall}) of
 		["OK"] -> ok;
 		[X] -> X
 	end.
@@ -95,7 +95,7 @@ flushall() ->
 flushall(Delay) when is_integer(Delay) ->
 	flushall(integer_to_list(Delay));
 flushall(Delay) ->
-	case gen_server:call(?SERVER, {flushall, {Delay}}) of
+	case gen_server2:call(?SERVER, {flushall, {Delay}}) of
 		["OK"] -> ok;
 		[X] -> X
 	end.
@@ -105,7 +105,7 @@ getkey(Key) when is_atom(Key) ->
 	getkey(atom_to_list(Key));
 	
 getkey(Key) ->
-	Bin = case gen_server:call(?SERVER, {getkey,{Key}}) of
+	Bin = case gen_server2:call(?SERVER, {getkey,{Key}}) of
 	    ["END"] -> undefined;
 	    [X] -> X
 	end,
@@ -120,7 +120,7 @@ getkey(Key) ->
 getkeylist(Key) when is_atom(Key) ->
 	getkeylist(atom_to_list(Key));
 getkeylist(Key) ->
-	Bin = case gen_server:call(?SERVER, {getkey,{Key}}) of
+	Bin = case gen_server2:call(?SERVER, {getkey,{Key}}) of
 	    ["END"] -> undefined;
 	    [X] -> X
 	end,
@@ -135,7 +135,7 @@ getkeylist(Key) ->
 getskey(Key) when is_atom(Key) ->
 	getskey(atom_to_list(Key));
 getskey(Key) ->
-	case gen_server:call(?SERVER, {getskey,{Key}}) of
+	case gen_server2:call(?SERVER, {getskey,{Key}}) of
 	    ["END"] -> undefined;
 	    [X] -> X
 	end.
@@ -149,7 +149,7 @@ delete(Key, Time) when is_atom(Key) ->
 delete(Key, Time) when is_integer(Time) ->
 	delete(Key, integer_to_list(Time));
 delete(Key, Time) ->
-	case gen_server:call(?SERVER, {delete, {Key, Time}}) of
+	case gen_server2:call(?SERVER, {delete, {Key, Time}}) of
 		["DELETED"] -> ok;
 		["NOT_FOUND"] -> not_found;
 		[X] -> X
@@ -190,7 +190,7 @@ setlist(Key, ExpTime, Value) when is_integer(ExpTime) ->
     setlist(Key, integer_to_list(ExpTime), Value);
 setlist(Key, ExpTime, Value) ->
 	Flag = random:uniform(?RANDOM_MAX),
-	case gen_server:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}}) of
+	case gen_server2:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}}) of
 	    ["STORED"] -> ok;
 	    ["NOT_STORED"] -> not_stored;
 	    [X] -> X
@@ -203,7 +203,7 @@ set(Key, Flag, ExpTime, Value) when is_integer(Flag) ->
 set(Key, Flag, ExpTime, Value) when is_integer(ExpTime) ->
     set(Key, Flag, integer_to_list(ExpTime), Value);
 set(Key, Flag, ExpTime, Value) ->
-	case gen_server:call(?SERVER, {set, {Key, Flag, ExpTime, Value}}) of
+	case gen_server2:call(?SERVER, {set, {Key, Flag, ExpTime, Value}}) of
 	    ["STORED"] -> ok;
 	    ["NOT_STORED"] -> not_stored;
 	    [X] -> X
@@ -221,7 +221,7 @@ add(Key, Flag, ExpTime, Value) when is_integer(Flag) ->
 add(Key, Flag, ExpTime, Value) when is_integer(ExpTime) ->
     add(Key, Flag, integer_to_list(ExpTime), Value);
 add(Key, Flag, ExpTime, Value) ->
-	case gen_server:call(?SERVER, {add, {Key, Flag, ExpTime, Value}}) of
+	case gen_server2:call(?SERVER, {add, {Key, Flag, ExpTime, Value}}) of
 	    ["STORED"] -> ok;
 	    ["NOT_STORED"] -> not_stored;
 	    [X] -> X
@@ -239,7 +239,7 @@ replace(Key, Flag, ExpTime, Value) when is_integer(Flag) ->
 replace(Key, Flag, ExpTime, Value) when is_integer(ExpTime) ->
     replace(Key, Flag, integer_to_list(ExpTime), Value);
 replace(Key, Flag, ExpTime, Value) ->
-	case gen_server:call(?SERVER, {replace, {Key, Flag, ExpTime, Value}}) of
+	case gen_server2:call(?SERVER, {replace, {Key, Flag, ExpTime, Value}}) of
 	    ["STORED"] -> ok;
 	    ["NOT_STORED"] -> not_stored;
 	    [X] -> X
@@ -259,7 +259,7 @@ cas(Key, Flag, ExpTime, CasUniq, Value) when is_integer(ExpTime) ->
 cas(Key, Flag, ExpTime, CasUniq, Value) when is_integer(CasUniq) ->
     cas(Key, Flag, ExpTime, integer_to_list(CasUniq), Value);
 cas(Key, Flag, ExpTime, CasUniq, Value) ->
-	case gen_server:call(?SERVER, {cas, {Key, Flag, ExpTime, CasUniq, Value}}) of
+	case gen_server2:call(?SERVER, {cas, {Key, Flag, ExpTime, CasUniq, Value}}) of
 	    ["STORED"] -> ok;
 	    ["NOT_STORED"] -> not_stored;
 	    [X] -> X
@@ -275,12 +275,12 @@ connect(Host, Port) ->
 
 %% @doc disconnect from memcached
 disconnect() ->
-	gen_server:call(?SERVER, {stop}),
+	gen_server2:call(?SERVER, {stop}),
 	ok.
 
 %% @private
 start_link(Host, Port) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Host, Port], []).
+    gen_server2:start_link({local, ?SERVER}, ?MODULE, [Host, Port], []).
 
 %% @private
 init([Host, Port]) ->
