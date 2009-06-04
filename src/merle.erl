@@ -52,7 +52,8 @@
 -export([
     stats/0, stats/1, version/0, getkey/1, delete/2, set/4, setlist/3, add/4, replace/2,
     replace/4, cas/5, set/2, flushall/0, flushall/1, verbosity/1, add/2,
-    cas/3, getskey/1, connect/0, connect/2, delete/1, disconnect/0, getkeylist/1
+    cas/3, getskey/1, connect/0, connect/2, connect/3, delete/1, disconnect/0,
+    getkeylist/1, getkeylist/2
 ]).
 
 %% gen_server callbacks
@@ -110,25 +111,34 @@ getkey(Key) ->
 	    [X] -> X
 	end,
 	case Bin of
-		undefined ->
-			undefined;
-		_ ->
-			binary_to_term(Bin)
+	undefined ->
+		undefined;
+	_ ->
+		binary_to_term(Bin)
 	end.
 
 %% @doc retrieve value(list only) based off of key
-getkeylist(Key) when is_atom(Key) ->
-	getkeylist(atom_to_list(Key));
 getkeylist(Key) ->
-	Bin = case gen_server2:call(?SERVER, {getkey,{Key}}) of
+	getkeylist(Key, 0).
+
+%% @doc retrieve value(list only) based off of key
+getkeylist(Key, Timeout) when is_atom(Key) ->
+	getkeylist(atom_to_list(Key),Timeout);
+getkeylist(Key, Timeout) ->
+	Call = if Timeout > 0 ->
+			gen_server2:call(?SERVER, {getkey,{Key}}, Timeout);
+		true ->
+			gen_server2:call(?SERVER, {getkey,{Key}})
+		end,
+	Bin = case Call of
 	    ["END"] -> undefined;
 	    [X] -> X
 	end,
-		case Bin of
-		undefined ->
-			undefined;
-		_ ->
-			binary_to_list(Bin)
+	case Bin of
+	undefined ->
+		undefined;
+	_ ->
+		binary_to_list(Bin)
 	end.
 
 %% @doc retrieve value based off of key for use with cas
@@ -190,7 +200,13 @@ setlist(Key, ExpTime, Value) when is_integer(ExpTime) ->
     setlist(Key, integer_to_list(ExpTime), Value);
 setlist(Key, ExpTime, Value) ->
 	Flag = random:uniform(?RANDOM_MAX),
-	case gen_server2:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}}) of
+	TimeOut = list_to_integer (ExpTime),
+	Call = if TimeOut > 0 ->
+			gen_server2:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}}, TimeOut);
+		true ->
+			 gen_server2:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}})
+	end,
+	case Call   of
 	    ["STORED"] -> ok;
 	    ["NOT_STORED"] -> not_stored;
 	    [X] -> X
@@ -273,6 +289,11 @@ connect() ->
 connect(Host, Port) ->
 	start_link(Host, Port).
 
+%% @doc connect to memcached
+connect(Host, Port, Options) ->
+	start_link(Host, Port, Options).
+
+
 %% @doc disconnect from memcached
 disconnect() ->
 	gen_server2:call(?SERVER, {stop}),
@@ -281,6 +302,10 @@ disconnect() ->
 %% @private
 start_link(Host, Port) ->
     gen_server2:start_link({local, ?SERVER}, ?MODULE, [Host, Port], []).
+
+%% @private
+start_link(Host, Port, Options) ->
+    gen_server2:start_link({local, ?SERVER}, ?MODULE, [Host, Port], Options).
 
 %% @private
 init([Host, Port]) ->
