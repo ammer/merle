@@ -53,7 +53,7 @@
     stats/0, stats/1, version/0, getkey/1, delete/2, set/4, setlist/3, add/4, replace/2,
     replace/4, cas/5, set/2, flushall/0, flushall/1, verbosity/1, add/2,
     cas/3, getskey/1, connect/0, connect/2, connect/3, delete/1, disconnect/0,
-    getkeylist/1, getkeylist/2
+    getkeylist/1, getkeylist/2, reconnect/3
 ]).
 
 %% gen_server callbacks
@@ -126,7 +126,7 @@ getkeylist(Key, Timeout) when is_atom(Key) ->
 	getkeylist(atom_to_list(Key),Timeout);
 getkeylist(Key, Timeout) ->
 	Call = if Timeout > 0 ->
-			gen_server2:call(?SERVER, {getkey,{Key}}, Timeout);
+			gen_server2:call(?SERVER, {getkey,{Key}}, Timeout * 1000);
 		true ->
 			gen_server2:call(?SERVER, {getkey,{Key}})
 		end,
@@ -200,9 +200,9 @@ setlist(Key, ExpTime, Value) when is_integer(ExpTime) ->
     setlist(Key, integer_to_list(ExpTime), Value);
 setlist(Key, ExpTime, Value) ->
 	Flag = random:uniform(?RANDOM_MAX),
-	TimeOut = list_to_integer (ExpTime),
-	Call = if TimeOut > 0 ->
-			gen_server2:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}}, TimeOut);
+	Timeout = list_to_integer (ExpTime),
+	Call = if Timeout > 0 ->
+			gen_server2:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}}, Timeout * 1000);
 		true ->
 			 gen_server2:call(?SERVER, {setlist, {Key, integer_to_list(Flag), ExpTime, Value}})
 	end,
@@ -293,6 +293,15 @@ connect(Host, Port) ->
 connect(Host, Port, Options) ->
 	start_link(Host, Port, Options).
 
+%% @replace connect socket
+reconnect(Host, Port, Timeout) ->
+	NewSocket = init([Host, Port]),
+	case NewSocket of
+	{ok,Socket} ->
+		gen_server2:call(?SERVER, {reconnect, {Socket}}, Timeout * 1000);
+	Other ->
+		Other
+	end.
 
 %% @doc disconnect from memcached
 disconnect() ->
@@ -313,6 +322,9 @@ init([Host, Port]) ->
 
 handle_call({stop}, _From, Socket) ->
     {stop, requested_disconnect, Socket};
+
+handle_call({reconnect, {NewSocket}}, _From, _Socket) ->
+    {reply, ok, NewSocket};
 
 handle_call({stats}, _From, Socket) ->
     Reply = send_generic_cmd(Socket, iolist_to_binary([<<"stats">>])),
