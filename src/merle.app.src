@@ -1,0 +1,9 @@
+%% -*- erlang -*-
+{application, merle,
+ [{description, "An erlang based memcached client"},
+  {id, "merle"},
+  {vsn, "0.3"},
+  {modules, []},
+  {registered, []},
+  {mod, {'merle', [normal, nil]}},
+  {applications, []}]}.
